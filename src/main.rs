@@ -1,11 +1,14 @@
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use dotenv::dotenv;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::{env, net::SocketAddr};
 
 mod ipfs_router;
 
-use ipfs_router::get_all_ipfs;
+use ipfs_router::{create_data, get_all_ipfs};
 
 #[tokio::main]
 async fn main() {
@@ -21,6 +24,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(home))
         .route("/get_all", get(get_all_ipfs))
+        .route("/create_data", post(create_data))
         .with_state(pool);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
