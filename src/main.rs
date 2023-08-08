@@ -5,18 +5,23 @@ use std::{env, net::SocketAddr};
 
 mod ipfs_router;
 
+use ipfs_router::get_all_ipfs;
+
 #[tokio::main]
 async fn main() {
     dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
-    let _pool: Pool<Postgres> = PgPoolOptions::new()
+    let pool: Pool<Postgres> = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
         .await
         .unwrap();
 
-    let app = Router::new().route("/", get(home));
+    let app = Router::new()
+        .route("/", get(home))
+        .route("/get_all", get(get_all_ipfs))
+        .with_state(pool);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     println!("Listening on {addr}");

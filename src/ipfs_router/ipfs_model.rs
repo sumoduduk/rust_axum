@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use serde::Serialize;
 use sqlx::{
     types::chrono::{DateTime, Utc},
     FromRow, Pool, Postgres,
@@ -18,6 +19,7 @@ pub struct SchemaIPFS {
 pub enum Operation {
     Create(String, String, Option<String>),
     Read,
+    Fetch,
     Update(i32, Option<String>),
     Delete(i32),
 }
@@ -25,14 +27,30 @@ pub enum Operation {
 #[derive(Debug)]
 pub enum OperationResult {
     DataStruct(SchemaIPFS),
-    ArrStruct(Vec<SchemaIPFS>),
+    ArrStruct(ArrStructData),
     Deleted,
     Error,
 }
 
+#[derive(Debug)]
+pub enum ArrStructData {
+    ReturnJsonEnum(Vec<ReturnJson>),
+    SchemaEnum(Vec<SchemaIPFS>),
+}
+
+#[derive(Serialize, Debug)]
+pub struct ReturnJson {
+    image: String,
+    ipfs_image_url: String,
+    category: Option<String>,
+    created: Option<String>,
+}
+
 use OperationResult::*;
 
-use crate::parse_timestamp;
+fn datetime_to_string(datetime: Option<DateTime<Utc>>) -> Option<String> {
+    datetime.map(|opt| opt.to_rfc3339())
+}
 
 impl Operation {
     pub async fn execute(&self, pool: &Pool<Postgres>) -> Result<OperationResult, sqlx::Error> {
@@ -44,7 +62,7 @@ impl Operation {
 
             Self::Read => {
                 let all_data = Self::read_all(pool).await?;
-                Ok(ArrStruct(all_data))
+                Ok(ArrStruct(ArrStructData::SchemaEnum(all_data)))
             }
 
             Self::Update(id, category) => {
@@ -55,6 +73,11 @@ impl Operation {
             Self::Delete(id) => {
                 Self::delete_individual(pool, *id).await?;
                 Ok(Deleted)
+            }
+
+            Self::Fetch => {
+                let returned_arr = Self::read_all_ret(pool).await?;
+                Ok(ArrStruct(ArrStructData::ReturnJsonEnum(returned_arr)))
             }
         }
     }
@@ -95,6 +118,29 @@ impl Operation {
         .await?;
 
         Ok(all_data)
+    }
+
+    async fn read_all_ret(pool: &Pool<Postgres>) -> Result<Vec<ReturnJson>, sqlx::Error> {
+        let all_data: Vec<_> = sqlx::query!(
+            r#"
+            SELECT id, image, time_created, ipfs_image_url, category
+            FROM ipfs_image
+            "#
+        )
+        .fetch_all(pool)
+        .await?;
+
+        let mapped_data = all_data
+            .iter()
+            .map(|elm| ReturnJson {
+                image: elm.image.to_owned(),
+                ipfs_image_url: elm.ipfs_image_url.to_owned(),
+                category: elm.category.to_owned(),
+                created: datetime_to_string(elm.time_created.to_owned()),
+            })
+            .collect();
+
+        Ok(mapped_data)
     }
 
     async fn update(
@@ -143,6 +189,13 @@ async fn it_can_success_fetch_all_data() {
     use dotenv::dotenv;
     use std::env;
 
+    fn parse_timestamp(s: &str) -> Option<DateTime<Utc>> {
+        match DateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.fZ") {
+            Ok(dt) => Some(dt.into()),
+            Err(_) => None,
+        }
+    }
+
     dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     dbg!(&database_url);
@@ -190,7 +243,7 @@ async fn it_can_success_fetch_all_data() {
         },
     ];
 
-    if let OperationResult::ArrStruct(data) = res {
+    if let OperationResult::ArrStruct(ArrStructData::SchemaEnum(data)) = res {
         assert_eq!(dummy, data)
     };
 }
