@@ -26,9 +26,9 @@ pub enum Operation {
 
 #[derive(Debug)]
 pub enum OperationResult {
-    DataStruct(SchemaIPFS),
+    DataStruct(i32, String, String),
     ArrStruct(ArrStructData),
-    Deleted,
+    Deleted(i32),
     Error,
 }
 
@@ -57,7 +57,8 @@ impl Operation {
         match self {
             Self::Create(image, ipfs_image_url, category) => {
                 let inserted_data = Self::create_row(pool, image, ipfs_image_url, category).await?;
-                Ok(DataStruct(inserted_data))
+                let (id, image, ipfs_image_url) = inserted_data;
+                Ok(DataStruct(id, image, ipfs_image_url))
             }
 
             Self::Read => {
@@ -67,12 +68,15 @@ impl Operation {
 
             Self::Update(id, category) => {
                 let updated_data = Self::update(pool, *id, category).await?;
-                Ok(DataStruct(updated_data))
+
+                let (id, date_update, ipfs_image_url) = updated_data;
+
+                Ok(DataStruct(id, date_update, ipfs_image_url))
             }
 
             Self::Delete(id) => {
-                Self::delete_individual(pool, *id).await?;
-                Ok(Deleted)
+                let id_affected = Self::delete_individual(pool, id).await?;
+                Ok(Deleted(id_affected))
             }
 
             Self::Fetch => {
@@ -86,15 +90,14 @@ impl Operation {
         image: &str,
         ipfs_image_url: &str,
         category: &Option<String>,
-    ) -> Result<SchemaIPFS, sqlx::Error> {
+    ) -> Result<(i32, String, String), sqlx::Error> {
         let mut tx = pool.begin().await?;
 
-        let inserted = sqlx::query_as!(
-            SchemaIPFS,
+        let inserted = sqlx::query!(
             r#"
                 INSERT INTO ipfs_image (image, ipfs_image_url, category)
                 VALUES ($1, $2, $3)
-                RETURNING *
+                RETURNING id, image, ipfs_image_url
             "#,
             image,
             ipfs_image_url,
@@ -104,7 +107,10 @@ impl Operation {
         .await?;
 
         tx.commit().await?;
-        Ok(inserted)
+
+        let (id, image, ipfs_image_url) = (inserted.id, inserted.image, inserted.ipfs_image_url);
+
+        Ok((id, image, ipfs_image_url))
     }
 
     async fn read_all(pool: &Pool<Postgres>) -> Result<Vec<SchemaIPFS>, sqlx::Error> {
@@ -147,16 +153,15 @@ impl Operation {
         pool: &Pool<Postgres>,
         id: i32,
         category: &Option<String>,
-    ) -> Result<SchemaIPFS, sqlx::Error> {
+    ) -> Result<(i32, String, String), sqlx::Error> {
         let mut tx = pool.begin().await?;
 
-        let updated_data = sqlx::query_as!(
-            SchemaIPFS,
+        let updated_data = sqlx::query!(
             r#"
                 UPDATE ipfs_image
                 SET category = $1
                 WHERE id = $2
-                RETURNING *
+                RETURNING id, ipfs_image_url, updated_date
             "#,
             category.as_deref(),
             id
@@ -166,26 +171,48 @@ impl Operation {
 
         tx.commit().await?;
 
-        Ok(updated_data)
+        let id = updated_data.id;
+        let ipfs_image_url = updated_data.ipfs_image_url;
+
+        let updated_date = updated_data.updated_date;
+
+        let date_str = datetime_to_string(updated_date).unwrap();
+
+        Ok((id, date_str, ipfs_image_url))
     }
 
-    async fn delete_individual(pool: &Pool<Postgres>, id: i32) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+    async fn delete_individual(pool: &Pool<Postgres>, id: &i32) -> Result<i32, sqlx::Error> {
+        let mut tx = pool.begin().await?;
+        let stmt = sqlx::query(
             r#"
-            Delete from ipfs_image
-            Where id = $1
-            "#,
-            id
+        DO $$
+        DECLARE
+            id INTEGER := $1;
+            exists BOOLEAN;
+        BEGIN
+            SELECT EXISTS(SELECT 1 FROM ipfs_image WHERE id = id)
+            INTO exists;
+            IF NOT exists THEN
+                RAISE EXCEPTION 'Image with id % does not exist', id USING ERRCODE = 'P0001';
+            END IF;
+            DELETE FROM ipfs_image
+            WHERE id = id;
+        END $$;
+        "#,
         )
-        .execute(pool)
+        .bind(id)
+        .execute(&mut tx)
         .await?;
+        tx.commit().await?;
 
-        Ok(())
+        let res = stmt.rows_affected() as i32;
+
+        Ok(res)
     }
 }
 
-#[tokio::test]
-async fn it_can_success_fetch_all_data() {
+#[cfg(test)]
+mod test {
     use dotenv::dotenv;
     use std::env;
 
@@ -195,7 +222,10 @@ async fn it_can_success_fetch_all_data() {
             Err(_) => None,
         }
     }
+}
 
+#[tokio::test]
+async fn it_can_success_fetch_all_data() {
     dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     dbg!(&database_url);
