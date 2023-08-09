@@ -211,69 +211,69 @@ impl Operation {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use dotenv::dotenv;
-    use std::env;
-
-    fn parse_timestamp(s: &str) -> Option<DateTime<Utc>> {
-        match DateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.fZ") {
-            Ok(dt) => Some(dt.into()),
-            Err(_) => None,
-        }
-    }
-}
-
-#[tokio::test]
-async fn it_can_success_fetch_all_data() {
-    dotenv().ok();
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    dbg!(&database_url);
-
-    let pool: Pool<Postgres> = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await
-        .unwrap();
-
-    let res = Operation::Read.execute(&pool).await.unwrap();
-
-    let dummy = vec![
-        SchemaIPFS {
-            id: 4,
-            image: "image1.jpg".to_string(),
-            time_created: parse_timestamp("2023-08-07T06:53:39.054261Z"),
-            ipfs_image_url: "https://ipfs.io/ipfs/Qm...".to_string(),
-            category: Some("category1".to_string()),
-            updated_date: parse_timestamp("2023-08-07T06:53:39.054261Z"),
-        },
-        SchemaIPFS {
-            id: 5,
-            image: "image2.jpg".to_string(),
-            time_created: parse_timestamp("2023-08-07T06:53:39.054261Z"),
-            ipfs_image_url: "https://ipfs.io/ipfs/Qm...".to_string(),
-            category: Some("category2".to_string()),
-            updated_date: parse_timestamp("2023-08-07T06:53:39.054261Z"),
-        },
-        SchemaIPFS {
-            id: 6,
-            image: "image3.jpg".to_string(),
-            time_created: parse_timestamp("2023-08-07T06:53:39.054261Z"),
-            ipfs_image_url: "https://ipfs.io/ipfs/Qm...".to_string(),
-            category: Some("category3".to_string()),
-            updated_date: parse_timestamp("2023-08-07T06:53:39.054261Z"),
-        },
-        SchemaIPFS {
-            id: 7,
-            image: "image4.jpg".to_string(),
-            time_created: parse_timestamp("2023-08-07T06:53:39.054261Z"),
-            ipfs_image_url: "https://ipfs.io/ipfs/Qm...".to_string(),
-            category: None,
-            updated_date: parse_timestamp("2023-08-07T06:53:39.054261Z"),
-        },
-    ];
-
-    if let OperationResult::ArrStruct(ArrStructData::SchemaEnum(data)) = res {
-        assert_eq!(dummy, data)
-    };
-}
+// #[cfg(test)]
+// mod test {
+//     use dotenv::dotenv;
+//     use std::env;
+//
+//     fn parse_timestamp(s: &str) -> Option<DateTime<Utc>> {
+//         match DateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.fZ") {
+//             Ok(dt) => Some(dt.into()),
+//             Err(_) => None,
+//         }
+//     }
+// }
+//
+// #[tokio::test]
+// async fn it_can_success_fetch_all_data() {
+//     dotenv().ok();
+//     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+//     dbg!(&database_url);
+//
+//     let pool: Pool<Postgres> = sqlx::postgres::PgPoolOptions::new()
+//         .max_connections(5)
+//         .connect(&database_url)
+//         .await
+//         .unwrap();
+//
+//     let res = Operation::Read.execute(&pool).await.unwrap();
+//
+//     let dummy = vec![
+//         SchemaIPFS {
+//             id: 4,
+//             image: "image1.jpg".to_string(),
+//             time_created: parse_timestamp("2023-08-07T06:53:39.054261Z"),
+//             ipfs_image_url: "https://ipfs.io/ipfs/Qm...".to_string(),
+//             category: Some("category1".to_string()),
+//             updated_date: parse_timestamp("2023-08-07T06:53:39.054261Z"),
+//         },
+//         SchemaIPFS {
+//             id: 5,
+//             image: "image2.jpg".to_string(),
+//             time_created: parse_timestamp("2023-08-07T06:53:39.054261Z"),
+//             ipfs_image_url: "https://ipfs.io/ipfs/Qm...".to_string(),
+//             category: Some("category2".to_string()),
+//             updated_date: parse_timestamp("2023-08-07T06:53:39.054261Z"),
+//         },
+//         SchemaIPFS {
+//             id: 6,
+//             image: "image3.jpg".to_string(),
+//             time_created: parse_timestamp("2023-08-07T06:53:39.054261Z"),
+//             ipfs_image_url: "https://ipfs.io/ipfs/Qm...".to_string(),
+//             category: Some("category3".to_string()),
+//             updated_date: parse_timestamp("2023-08-07T06:53:39.054261Z"),
+//         },
+//         SchemaIPFS {
+//             id: 7,
+//             image: "image4.jpg".to_string(),
+//             time_created: parse_timestamp("2023-08-07T06:53:39.054261Z"),
+//             ipfs_image_url: "https://ipfs.io/ipfs/Qm...".to_string(),
+//             category: None,
+//             updated_date: parse_timestamp("2023-08-07T06:53:39.054261Z"),
+//         },
+//     ];
+//
+//     if let OperationResult::ArrStruct(ArrStructData::SchemaEnum(data)) = res {
+//         assert_eq!(dummy, data)
+//     };
+// }

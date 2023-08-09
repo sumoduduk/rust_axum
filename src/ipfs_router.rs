@@ -37,6 +37,8 @@ pub async fn get_all_ipfs(
         .await
         .map_err(internal_error);
 
+    dbg!(&res);
+
     match res {
         Ok(response) => match response {
             ArrStruct(ReturnJsonEnum(data)) => Ok(Json(data)),
