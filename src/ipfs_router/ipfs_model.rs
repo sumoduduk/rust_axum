@@ -77,6 +77,7 @@ impl Operation {
 
             Self::Delete(id) => {
                 let id_affected = Self::delete_individual(pool, id).await?;
+                dbg!(id_affected);
                 Ok(Deleted(id_affected))
             }
 
@@ -163,7 +164,11 @@ impl Operation {
         let updated_data = sqlx::query!(
             r#"
                 UPDATE ipfs_image
-                SET (image, ipfs_image_url, category) = ($1, $2, $3)
+                SET 
+                    image = COALESCE($1, image),
+                    ipfs_image_url = COALESCE($2, ipfs_image_url),
+                    category = COALESCE($3, category),
+                    updated_date = $5
                 WHERE id = $4
                 RETURNING id, image, ipfs_image_url, updated_date
             "#,
@@ -171,6 +176,7 @@ impl Operation {
             ipfs_image_url.as_deref(),
             category.as_deref(),
             id
+           Utc::no
         )
         .fetch_one(&mut tx)
         .await?;
@@ -191,20 +197,9 @@ impl Operation {
         let mut tx = pool.begin().await?;
         let stmt = sqlx::query(
             r#"
-        DO $$
-        DECLARE
-            id INTEGER := $1;
-            exists BOOLEAN;
-        BEGIN
-            SELECT EXISTS(SELECT 1 FROM ipfs_image WHERE id = id)
-            INTO exists;
-            IF NOT exists THEN
-                RAISE EXCEPTION 'Image with id % does not exist', id USING ERRCODE = 'P0001';
-            END IF;
             DELETE FROM ipfs_image
-            WHERE id = id;
-        END $$;
-        "#,
+            WHERE id = $1
+            "#,
         )
         .bind(id)
         .execute(&mut tx)
@@ -212,6 +207,7 @@ impl Operation {
         tx.commit().await?;
 
         let res = stmt.rows_affected() as i32;
+        dbg!(res);
 
         Ok(res)
     }

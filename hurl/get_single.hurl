@@ -1,1 +1,1 @@
-GET http://localhost:3000/fetch_single/4
+GET http://localhost:3000/fetch_single/{{id}}

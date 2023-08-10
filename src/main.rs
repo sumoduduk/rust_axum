@@ -9,7 +9,9 @@ use std::{env, net::SocketAddr};
 
 mod ipfs_router;
 
-use ipfs_router::{create_data, delete_data, fetch_single, get_all_ipfs, update_data};
+use ipfs_router::{
+    create_data, delete_data, fetch_single, get_all_ipfs, get_all_pretty, update_data,
+};
 
 #[tokio::main]
 async fn main() {
@@ -25,8 +27,9 @@ async fn main() {
     let app = Router::new()
         .route("/", get(home))
         .route("/get_all", get(get_all_ipfs))
+        .route("/get_pretty", get(get_all_pretty))
         .route("/create_data", post(create_data))
-        .route("/update_data", patch(update_data))
+        .route("/update_data/:id", patch(update_data))
         .route("/delete_data/:id", delete(delete_data))
         .route("/fetch_single/:id", get(fetch_single))
         .with_state(pool);

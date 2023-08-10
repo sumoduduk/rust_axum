@@ -49,6 +49,30 @@ pub async fn get_all_ipfs(
     }
 }
 
+pub async fn get_all_pretty(
+    State(pool): State<Pool<Postgres>>,
+) -> Result<String, (StatusCode, String)> {
+    let res = Operation::Fetch
+        .execute(&pool)
+        .await
+        .map_err(internal_error);
+
+    dbg!(&res);
+
+    match res {
+        Ok(response) => match response {
+            ArrStruct(ReturnJsonEnum(data)) => {
+                let json_value =
+                    serde_json::to_string_pretty(&data).unwrap_or("Not Found".to_string());
+
+                Ok(json_value)
+            }
+            _ => Err((StatusCode::NOT_FOUND, "Imposible".to_string())),
+        },
+        Err(_) => Err((StatusCode::NOT_FOUND, "Shit happen".to_string())),
+    }
+}
+
 pub async fn create_data(
     State(pool): State<Pool<Postgres>>,
     Json(payload): Json<CreatePayload>,
@@ -113,7 +137,10 @@ pub async fn delete_data(
             }))),
             _ => Err((StatusCode::NOT_FOUND, "Imposible".to_string())),
         },
-        Err(_) => Err((StatusCode::NOT_FOUND, "Shit happen".to_string())),
+        Err(err) => {
+            dbg!(err);
+            Err((StatusCode::NOT_FOUND, "Shit happen".to_string()))
+        }
     }
 }
 
