@@ -20,7 +20,7 @@ pub enum Operation {
     Create(String, String, Option<String>),
     Read,
     Fetch,
-    Update(i32, Option<String>),
+    Update(i32, Option<String>, Option<String>, Option<String>),
     Delete(i32),
 }
 
@@ -40,6 +40,7 @@ pub enum ArrStructData {
 
 #[derive(Serialize, Debug)]
 pub struct ReturnJson {
+    pub id: i32,
     image: String,
     ipfs_image_url: String,
     category: Option<String>,
@@ -66,8 +67,8 @@ impl Operation {
                 Ok(ArrStruct(ArrStructData::SchemaEnum(all_data)))
             }
 
-            Self::Update(id, category) => {
-                let updated_data = Self::update(pool, *id, category).await?;
+            Self::Update(id, image, ipfs_image_url, category) => {
+                let updated_data = Self::update(pool, *id, image, ipfs_image_url, category).await?;
 
                 let (id, date_update, ipfs_image_url) = updated_data;
 
@@ -139,6 +140,7 @@ impl Operation {
         let mapped_data = all_data
             .iter()
             .map(|elm| ReturnJson {
+                id: elm.id,
                 image: elm.image.to_owned(),
                 ipfs_image_url: elm.ipfs_image_url.to_owned(),
                 category: elm.category.to_owned(),
@@ -152,6 +154,8 @@ impl Operation {
     async fn update(
         pool: &Pool<Postgres>,
         id: i32,
+        image: &Option<String>,
+        ipfs_image_url: &Option<String>,
         category: &Option<String>,
     ) -> Result<(i32, String, String), sqlx::Error> {
         let mut tx = pool.begin().await?;
@@ -159,10 +163,12 @@ impl Operation {
         let updated_data = sqlx::query!(
             r#"
                 UPDATE ipfs_image
-                SET category = $1
-                WHERE id = $2
-                RETURNING id, ipfs_image_url, updated_date
+                SET (image, ipfs_image_url, category) = ($1, $2, $3)
+                WHERE id = $4
+                RETURNING id, image, ipfs_image_url, updated_date
             "#,
+            image.as_deref(),
+            ipfs_image_url.as_deref(),
             category.as_deref(),
             id
         )

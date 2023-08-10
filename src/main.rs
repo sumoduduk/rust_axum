@@ -1,6 +1,6 @@
 use axum::{
     http::StatusCode,
-    routing::{get, post},
+    routing::{delete, get, patch, post},
     Router,
 };
 use dotenv::dotenv;
@@ -9,7 +9,7 @@ use std::{env, net::SocketAddr};
 
 mod ipfs_router;
 
-use ipfs_router::{create_data, delete_data, get_all_ipfs, update_data};
+use ipfs_router::{create_data, delete_data, fetch_single, get_all_ipfs, update_data};
 
 #[tokio::main]
 async fn main() {
@@ -26,8 +26,9 @@ async fn main() {
         .route("/", get(home))
         .route("/get_all", get(get_all_ipfs))
         .route("/create_data", post(create_data))
-        .route("/update_data", post(update_data))
-        .route("/delete_data", post(delete_data))
+        .route("/update_data", patch(update_data))
+        .route("/delete_data/:id", delete(delete_data))
+        .route("/fetch_single/:id", get(fetch_single))
         .with_state(pool);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
