@@ -4,6 +4,7 @@ use axum::{
     Json,
 };
 
+mod ipfs_controller;
 mod ipfs_model;
 
 use crate::internal_error;

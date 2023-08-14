@@ -45,6 +45,7 @@ pub struct ReturnJson {
     ipfs_image_url: String,
     category: Option<String>,
     created: Option<String>,
+    updated_date: Option<String>,
 }
 
 use OperationResult::*;
@@ -131,12 +132,13 @@ impl Operation {
     async fn read_all_ret(pool: &Pool<Postgres>) -> Result<Vec<ReturnJson>, sqlx::Error> {
         let all_data: Vec<_> = sqlx::query!(
             r#"
-            SELECT id, image, time_created, ipfs_image_url, category
+            SELECT id, image, time_created, ipfs_image_url, category, updated_date
             FROM ipfs_image
             "#
         )
         .fetch_all(pool)
         .await?;
+        dbg!(&all_data);
 
         let mapped_data = all_data
             .iter()
@@ -146,6 +148,7 @@ impl Operation {
                 ipfs_image_url: elm.ipfs_image_url.to_owned(),
                 category: elm.category.to_owned(),
                 created: datetime_to_string(elm.time_created.to_owned()),
+                updated_date: datetime_to_string(elm.updated_date.to_owned()),
             })
             .collect();
 
@@ -168,15 +171,14 @@ impl Operation {
                     image = COALESCE($1, image),
                     ipfs_image_url = COALESCE($2, ipfs_image_url),
                     category = COALESCE($3, category),
-                    updated_date = $5
+                    updated_date = NOW()
                 WHERE id = $4
                 RETURNING id, image, ipfs_image_url, updated_date
             "#,
             image.as_deref(),
             ipfs_image_url.as_deref(),
             category.as_deref(),
-            id
-           Utc::no
+            id,
         )
         .fetch_one(&mut tx)
         .await?;
