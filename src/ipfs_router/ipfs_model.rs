@@ -14,6 +14,10 @@ pub struct SchemaIPFS {
     ipfs_image_url: String,
     category: Option<String>,
     updated_date: Option<DateTime<Utc>>,
+    width: i32,
+    height: i32,
+    prompt: Option<String>,
+    hash_id: String,
 }
 
 pub enum Operation {
@@ -58,9 +62,19 @@ impl Operation {
     pub async fn execute(&self, pool: &Pool<Postgres>) -> Result<OperationResult, sqlx::Error> {
         match self {
             Self::Create(image, ipfs_image_url, category) => {
-                let inserted_data = Self::create_row(pool, image, ipfs_image_url, category).await?;
-                let (id, image, ipfs_image_url) = inserted_data;
-                Ok(DataStruct(id, image, ipfs_image_url))
+                let inserted_data = Self::create_row(
+                    pool,
+                    image,
+                    ipfs_image_url,
+                    category,
+                    width,
+                    height,
+                    prompt,
+                    hash_id,
+                )
+                .await?;
+                let (id, image, ipfs_image_url, category, hash_id) = inserted_data;
+                Ok(DataStruct(id, image, ipfs_image_url, category, hash_id))
             }
 
             Self::Read => {
@@ -93,27 +107,41 @@ impl Operation {
         image: &str,
         ipfs_image_url: &str,
         category: &Option<String>,
+        w: i32,
+        h: i32,
+        prompt: &Option<String>,
+        hash_id: String,
     ) -> Result<(i32, String, String), sqlx::Error> {
         let mut tx = pool.begin().await?;
 
         let inserted = sqlx::query!(
             r#"
-                INSERT INTO ipfs_image (image, ipfs_image_url, category)
-                VALUES ($1, $2, $3)
-                RETURNING id, image, ipfs_image_url
+                INSERT INTO ipfs_image (image, ipfs_image_url, category, width, height, prompt, hash_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING id, image, ipfs_image_url, category, hash_id
             "#,
             image,
             ipfs_image_url,
             category.as_deref(),
+            w,
+            h,
+            prompt.as_deref(),
+            hash_id,
         )
         .fetch_one(&mut tx)
         .await?;
 
         tx.commit().await?;
 
-        let (id, image, ipfs_image_url) = (inserted.id, inserted.image, inserted.ipfs_image_url);
+        let (id, image, ipfs_image_url, category, hash_id) = (
+            inserted.id,
+            inserted.image,
+            inserted.ipfs_image_url,
+            inserted.category,
+            inserted.hash_id,
+        );
 
-        Ok((id, image, ipfs_image_url))
+        Ok((id, image, ipfs_image_url, category, hash_id))
     }
 
     async fn read_all(pool: &Pool<Postgres>) -> Result<Vec<SchemaIPFS>, sqlx::Error> {
