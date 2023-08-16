@@ -1,12 +1,12 @@
 use reqwest::Client;
 use serde_json::{json, Value};
-use std::io::Read;
 
 const USER_AGENT :&str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36";
 const STORAGE_URI: &str = "https://api.nft.storage/";
 
-pub async fn get_resp_data() -> Result<Value, reqwest::Error> {
-    let keyword = "8K gundam mecha artstation unreal engine".to_owned();
+pub async fn get_resp_data(query_search: &str) -> Result<Value, reqwest::Error> {
+    let keyword = query_search.replace("+", " ");
+    dbg!(&keyword);
     let url = "https://www.seaart.ai/api/v1/artwork/list";
 
     let payload = json!({
@@ -71,7 +71,9 @@ async fn list_cid(bearer: String) -> Result<String, reqwest::Error> {
 
 #[tokio::test]
 async fn meta_get_1() {
-    let get_meta = get_resp_data().await.unwrap();
+    let get_meta = get_resp_data("8K+gundam+mecha+artstation+unreal+engine")
+        .await
+        .unwrap();
     dbg!(&get_meta);
 
     assert_eq!(true, get_meta.is_array())
@@ -109,3 +111,13 @@ async fn meta_ipfs_upload() {
 
     assert_eq!("Test".to_string(), cid);
 }
+
+// #[test]
+// fn replace_test() {
+//     let output = "8K gundam mecha artstation unreal engine";
+//
+//     assert_eq!(
+//         output,
+//         get_resp_data("8K+gundam+mecha+artstation+unreal+engine")
+//     )
+// }

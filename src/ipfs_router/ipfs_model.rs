@@ -21,7 +21,15 @@ pub struct SchemaIPFS {
 }
 
 pub enum Operation {
-    Create(String, String, Option<String>),
+    Create {
+        image: String,
+        ipfs_image_url: String,
+        category: Option<String>,
+        width: i32,
+        height: i32,
+        prompt: Option<String>,
+        hash_id: String,
+    },
     Read,
     Fetch,
     Update(i32, Option<String>, Option<String>, Option<String>),
@@ -30,7 +38,8 @@ pub enum Operation {
 
 #[derive(Debug)]
 pub enum OperationResult {
-    DataStruct(i32, String, String),
+    DataStruct(i32, String, String, Option<String>, String),
+    UpdateStruct(ReturnJson),
     ArrStruct(ArrStructData),
     Deleted(i32),
     Error,
@@ -61,7 +70,15 @@ fn datetime_to_string(datetime: Option<DateTime<Utc>>) -> Option<String> {
 impl Operation {
     pub async fn execute(&self, pool: &Pool<Postgres>) -> Result<OperationResult, sqlx::Error> {
         match self {
-            Self::Create(image, ipfs_image_url, category) => {
+            Self::Create {
+                image,
+                ipfs_image_url,
+                category,
+                width,
+                height,
+                prompt,
+                hash_id,
+            } => {
                 let inserted_data = Self::create_row(
                     pool,
                     image,
@@ -85,9 +102,7 @@ impl Operation {
             Self::Update(id, image, ipfs_image_url, category) => {
                 let updated_data = Self::update(pool, *id, image, ipfs_image_url, category).await?;
 
-                let (id, date_update, ipfs_image_url) = updated_data;
-
-                Ok(DataStruct(id, date_update, ipfs_image_url))
+                Ok(UpdateStruct(updated_data))
             }
 
             Self::Delete(id) => {
@@ -107,11 +122,11 @@ impl Operation {
         image: &str,
         ipfs_image_url: &str,
         category: &Option<String>,
-        w: i32,
-        h: i32,
+        w: &i32,
+        h: &i32,
         prompt: &Option<String>,
-        hash_id: String,
-    ) -> Result<(i32, String, String), sqlx::Error> {
+        hash_id: &str,
+    ) -> Result<(i32, String, String, Option<String>, String), sqlx::Error> {
         let mut tx = pool.begin().await?;
 
         let inserted = sqlx::query!(
@@ -189,10 +204,10 @@ impl Operation {
         image: &Option<String>,
         ipfs_image_url: &Option<String>,
         category: &Option<String>,
-    ) -> Result<(i32, String, String), sqlx::Error> {
+    ) -> Result<ReturnJson, sqlx::Error> {
         let mut tx = pool.begin().await?;
 
-        let updated_data = sqlx::query!(
+        let updated_res = sqlx::query!(
             r#"
                 UPDATE ipfs_image
                 SET 
@@ -201,7 +216,7 @@ impl Operation {
                     category = COALESCE($3, category),
                     updated_date = NOW()
                 WHERE id = $4
-                RETURNING id, image, ipfs_image_url, updated_date
+                RETURNING id, image, time_created, ipfs_image_url, category, updated_date
             "#,
             image.as_deref(),
             ipfs_image_url.as_deref(),
@@ -213,14 +228,16 @@ impl Operation {
 
         tx.commit().await?;
 
-        let id = updated_data.id;
-        let ipfs_image_url = updated_data.ipfs_image_url;
+        let updated_res_data = ReturnJson {
+            id: updated_res.id,
+            image: updated_res.image,
+            ipfs_image_url: updated_res.ipfs_image_url,
+            category: updated_res.category,
+            created: datetime_to_string(updated_res.time_created),
+            updated_date: datetime_to_string(updated_res.updated_date),
+        };
 
-        let updated_date = updated_data.updated_date;
-
-        let date_str = datetime_to_string(updated_date).unwrap();
-
-        Ok((id, date_str, ipfs_image_url))
+        Ok(updated_res_data)
     }
 
     async fn delete_individual(pool: &Pool<Postgres>, id: &i32) -> Result<i32, sqlx::Error> {

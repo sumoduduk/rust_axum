@@ -1,11 +1,13 @@
+use std::collections::HashMap;
+
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     Json,
 };
 
-mod ipfs_controller;
 mod ipfs_model;
+mod seaart_resp;
 
 use crate::internal_error;
 
@@ -22,6 +24,10 @@ pub struct CreatePayload {
     image: String,
     ipfs_image_url: String,
     category: Option<String>,
+    width: i32,
+    height: i32,
+    prompt: Option<String>,
+    hash_id: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -79,17 +85,27 @@ pub async fn create_data(
     Json(payload): Json<CreatePayload>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
     dbg!(&payload);
-    let res = Operation::Create(payload.image, payload.ipfs_image_url, payload.category)
-        .execute(&pool)
-        .await
-        .map_err(internal_error);
+    let res = Operation::Create {
+        image: payload.image,
+        ipfs_image_url: payload.ipfs_image_url,
+        category: payload.category,
+        width: payload.width,
+        height: payload.height,
+        prompt: payload.prompt,
+        hash_id: payload.hash_id,
+    }
+    .execute(&pool)
+    .await
+    .map_err(internal_error);
 
     match res {
         Ok(resp) => match resp {
-            DataStruct(id, image, ipfs_image_url) => Ok(Json(json!({
+            DataStruct(id, image, ipfs_image_url, category, hash_id) => Ok(Json(json!({
                 "id": id,
                 "image": image,
-                "ipfs_image_url": ipfs_image_url
+                "ipfs_image_url": ipfs_image_url,
+                "category" : category,
+                "hash_id" : hash_id
             }))),
             _ => Err((StatusCode::NOT_FOUND, "Imposible".to_string())),
         },
@@ -101,7 +117,7 @@ pub async fn update_data(
     State(pool): State<Pool<Postgres>>,
     Path(id): Path<i32>,
     Json(payload): Json<UpdatePayload>,
-) -> Result<Json<Value>, (StatusCode, String)> {
+) -> Result<Json<ReturnJson>, (StatusCode, String)> {
     dbg!(&payload);
     let res = Operation::Update(id, payload.image, payload.ipfs_image_url, payload.category)
         .execute(&pool)
@@ -110,11 +126,7 @@ pub async fn update_data(
 
     match res {
         Ok(resp) => match resp {
-            DataStruct(id, date, ipfs_image_url) => Ok(Json(json!({
-                "id": id,
-                "updated_at": date,
-                "ipfs_image_url": ipfs_image_url
-            }))),
+            UpdateStruct(data) => Ok(Json(data)),
             _ => Err((StatusCode::NOT_FOUND, "Imposible".to_string())),
         },
         Err(_) => Err((StatusCode::NOT_FOUND, "Shit happen".to_string())),
@@ -169,5 +181,23 @@ pub async fn fetch_single(
             _ => Err((StatusCode::NOT_FOUND, "Imposible".to_string())),
         },
         Err(_) => Err((StatusCode::NOT_FOUND, "Shit happen".to_string())),
+    }
+}
+
+pub async fn begin_insert(
+    Query(search_params): Query<HashMap<String, String>>,
+    State(pool): State,
+) -> Result<(), (StatusCode, String)> {
+    let q = search_params.get("q");
+    let category = search_params.get("category");
+
+    match (q, category) {
+        (Some(query), Some(_)) if query.len() == 0 => {
+            Err((StatusCode::BAD_REQUEST, "no query param detected"))
+        }
+        (Some(query), Some(_)) => {
+            todo!();
+        }
+        (_, _) => Err((StatusCode::BAD_GATEWAY, "Shit happen")),
     }
 }
