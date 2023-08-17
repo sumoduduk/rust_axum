@@ -1,12 +1,65 @@
-use eyre::{eyre, Result};
+// use eyre::{eyre, Result};
 use reqwest::Client;
 use serde_json::{json, Value};
 
-use super::CreatePayload;
+// use super::CreatePayload;
 
 const USER_AGENT :&str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36";
 
-pub async fn get_resp_data(query_search: &str, category: &str) -> Result<Vec<CreatePayload>> {
+// pub async fn get_resp_data(query_search: &str, category: &str) -> Result<Vec<CreatePayload>> {
+//     let keyword = query_search.replace('+', " ");
+//     dbg!(&keyword);
+//     let url = "https://www.seaart.ai/api/v1/artwork/list";
+//
+//     let payload = json!({
+//         "keyword": keyword,
+//         "order_by": "hot",
+//         "page": 1,
+//         "page_size": 60,
+//         "tags": [],
+//         "type": "community"
+//     });
+//
+//     let client = Client::builder().user_agent(USER_AGENT).build()?;
+//
+//     let resp: Value = client.post(url).json(&payload).send().await?.json().await?;
+//
+//     let items = &resp["data"]["items"];
+//     let items = items
+//         .as_array()
+//         .ok_or_else(|| eyre!("Response are not array"))?;
+//
+//     let result: Vec<CreatePayload> = items
+//         .iter()
+//         .map(|val| {
+//             let elem = extract_obj(val);
+//
+//             CreatePayload {
+//                 image: elem.0.to_string(),
+//                 hash_id: elem.1.to_string(),
+//                 prompt: Some(elem.2.to_string()),
+//                 width: elem.3,
+//                 height: elem.4,
+//                 ipfs_image_url: "NO_IPFS".to_string(),
+//                 category: Some(category.to_string()),
+//             };
+//         })
+//         .collect();
+//
+//     Ok(result)
+// }
+
+pub fn extract_obj(val: &Value) -> (&str, &str, &str, i32, i32) {
+    let image = val["banner"]["url"].as_str().unwrap_or_default();
+    let hash_id = val["id"].as_str().unwrap_or_default();
+    let prompt = val["prompt"].as_str().unwrap_or_default();
+    let width = val["banner"]["width"].as_i64().unwrap_or_default() as i32;
+    let height = val["banner"]["height"].as_i64().unwrap_or_default() as i32;
+
+    (image, hash_id, prompt, width, height)
+}
+
+pub async fn get_raw_value(query_search: &str) -> Result<Value, reqwest::Error> {
     let keyword = query_search.replace("+", " ");
     dbg!(&keyword);
     let url = "https://www.seaart.ai/api/v1/artwork/list";
@@ -23,42 +76,7 @@ pub async fn get_resp_data(query_search: &str, category: &str) -> Result<Vec<Cre
     let client = Client::builder().user_agent(USER_AGENT).build()?;
 
     let resp: Value = client.post(url).json(&payload).send().await?.json().await?;
-
-    let items = &resp["data"]["items"];
-    let items = items
-        .as_array()
-        .ok_or_else(|| eyre!("Something went wrong"))?;
-
-    let result: Vec<CreatePayload> = items
-        .into_iter()
-        .map(|val| {
-            let elem = extract_obj(val);
-
-            let create_payload = CreatePayload {
-                image: elem.0.to_string(),
-                hash_id: elem.1.to_string(),
-                prompt: Some(elem.2.to_string()),
-                width: elem.3,
-                height: elem.4,
-                ipfs_image_url: "NO_IPFS".to_string(),
-                category: Some(category.to_string()),
-            };
-
-            create_payload
-        })
-        .collect();
-
-    Ok(result)
-}
-
-fn extract_obj<'a>(val: &'a Value) -> (&'a str, &'a str, &'a str, i32, i32) {
-    let image = val["banner"]["url"].as_str().unwrap_or_default();
-    let hash_id = val["id"].as_str().unwrap_or_default();
-    let prompt = val["prompt"].as_str().unwrap_or_default();
-    let width = val["banner"]["width"].as_i64().unwrap_or_default() as i32;
-    let height = val["banner"]["height"].as_i64().unwrap_or_default() as i32;
-
-    (image, hash_id, prompt, width, height)
+    Ok(resp)
 }
 
 #[cfg(test)]

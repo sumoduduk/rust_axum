@@ -19,6 +19,8 @@ use sqlx::{Pool, Postgres};
 use ArrStructData::*;
 use OperationResult::*;
 
+use self::seaart_resp::{extract_obj, get_raw_value};
+
 #[derive(Deserialize, Debug)]
 pub struct CreatePayload {
     image: String,
@@ -186,18 +188,74 @@ pub async fn fetch_single(
 
 pub async fn begin_insert(
     Query(search_params): Query<HashMap<String, String>>,
-    State(pool): State,
-) -> Result<(), (StatusCode, String)> {
+    State(pool): State<Pool<Postgres>>,
+) -> Result<Json<Value>, (StatusCode, String)> {
     let q = search_params.get("q");
     let category = search_params.get("category");
 
     match (q, category) {
-        (Some(query), Some(_)) if query.len() == 0 => {
-            Err((StatusCode::BAD_REQUEST, "no query param detected"))
-        }
-        (Some(query), Some(_)) => {
-            todo!();
-        }
-        (_, _) => Err((StatusCode::BAD_GATEWAY, "Shit happen")),
+        (Some(query), Some(_)) if query.is_empty() => Err((
+            StatusCode::BAD_REQUEST,
+            "no query param detected".to_owned(),
+        )),
+        (Some(query), Some(cate)) => match get_raw_value(query).await {
+            Ok(val) => {
+                let vec_value = &val["data"]["items"];
+                match vec_value.as_array() {
+                    Some(vec_val) => {
+                        let mut count_inserted: u16 = 0;
+                        let mut count_not_inserted: u16 = 0;
+                        for item in vec_val {
+                            let extracted_obj = extract_obj(item);
+
+                            //insert to db;
+
+                            let res = Operation::Create {
+                                image: extracted_obj.0.to_string(),
+                                ipfs_image_url: "NO_IPFS".to_owned(),
+                                category: Some(cate.to_string()),
+                                width: extracted_obj.3,
+                                height: extracted_obj.4,
+                                prompt: Some(extracted_obj.2.to_string()),
+                                hash_id: extracted_obj.1.to_string(),
+                            }
+                            .execute(&pool)
+                            .await
+                            .map_err(internal_error);
+
+                            match res {
+                                Ok(_) => count_inserted += 1,
+                                Err(_) => count_not_inserted += 1,
+                            }
+                        }
+                        dbg!((count_not_inserted, count_inserted));
+                        Ok(Json(json!({
+                            "success": true,
+                            "total_inserted": count_inserted,
+                            "total_failure": count_not_inserted
+                        })))
+                    }
+                    None => Err((StatusCode::NOT_FOUND, "Value not an array".to_owned())),
+                }
+            }
+            Err(err) => Err((StatusCode::BAD_REQUEST, err.to_string())),
+        },
+        (_, _) => Err((StatusCode::BAD_GATEWAY, "Shit happen".to_owned())),
     }
+}
+
+pub async fn test_query(
+    Query(search_params): Query<HashMap<String, String>>,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    dbg!(&search_params);
+
+    let cloned = search_params.clone();
+
+    let key: Vec<_> = search_params.into_keys().collect();
+    let values: Vec<_> = cloned.into_values().collect();
+
+    Ok(Json(json!({
+        "keys": key,
+        "values": values
+    })))
 }
