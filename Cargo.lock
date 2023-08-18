@@ -1390,7 +1390,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust_ipfs_uploader"
+name = "rust_example"
 version = "0.1.0"
 dependencies = [
  "axum",

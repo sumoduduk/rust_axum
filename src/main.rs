@@ -37,7 +37,7 @@ async fn main() {
         .route("/test_search_query", get(test_query))
         .with_state(pool);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     println!("Listening on {addr}");
 
     axum::Server::bind(&addr)

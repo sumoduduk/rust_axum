@@ -59,7 +59,11 @@ pub fn extract_obj(val: &Value) -> (&str, &str, &str, i32, i32) {
     (image, hash_id, prompt, width, height)
 }
 
-pub async fn get_raw_value(query_search: &str) -> Result<Value, reqwest::Error> {
+pub async fn get_raw_value(
+    query_search: &str,
+    pages: u16,
+    tags: Vec<&String>,
+) -> Result<Value, reqwest::Error> {
     let keyword = query_search.replace("+", " ");
     dbg!(&keyword);
     let url = "https://www.seaart.ai/api/v1/artwork/list";
@@ -67,9 +71,9 @@ pub async fn get_raw_value(query_search: &str) -> Result<Value, reqwest::Error> 
     let payload = json!({
         "keyword": keyword,
         "order_by": "hot",
-        "page": 1,
+        "page": pages,
         "page_size": 60,
-        "tags": [],
+        "tags": tags,
         "type": "community"
     });
 

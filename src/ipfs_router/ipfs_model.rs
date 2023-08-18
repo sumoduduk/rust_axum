@@ -156,6 +156,8 @@ impl Operation {
             inserted.hash_id,
         );
 
+        println!("image {}", &image);
+
         Ok((id, image, ipfs_image_url, category, hash_id))
     }
 

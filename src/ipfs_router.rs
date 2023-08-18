@@ -190,57 +190,61 @@ pub async fn begin_insert(
     Query(search_params): Query<HashMap<String, String>>,
     State(pool): State<Pool<Postgres>>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    let q = search_params.get("q");
+    let q_default = String::from("");
+    let page_default = String::from("1");
+
+    let mut tag_vec = Vec::new();
+
+    let q = search_params.get("q").unwrap_or(&q_default);
     let category = search_params.get("category");
+    let page = search_params.get("page").unwrap_or(&page_default);
+    let tags = search_params.get("tags");
 
-    match (q, category) {
-        (Some(query), Some(_)) if query.is_empty() => Err((
-            StatusCode::BAD_REQUEST,
-            "no query param detected".to_owned(),
-        )),
-        (Some(query), Some(cate)) => match get_raw_value(query).await {
-            Ok(val) => {
-                let vec_value = &val["data"]["items"];
-                match vec_value.as_array() {
-                    Some(vec_val) => {
-                        let mut count_inserted: u16 = 0;
-                        let mut count_not_inserted: u16 = 0;
-                        for item in vec_val {
-                            let extracted_obj = extract_obj(item);
+    let page: u16 = page.parse().unwrap_or(1);
 
-                            //insert to db;
+    tag_vec.extend(tags);
 
-                            let res = Operation::Create {
-                                image: extracted_obj.0.to_string(),
-                                ipfs_image_url: "NO_IPFS".to_owned(),
-                                category: Some(cate.to_string()),
-                                width: extracted_obj.3,
-                                height: extracted_obj.4,
-                                prompt: Some(extracted_obj.2.to_string()),
-                                hash_id: extracted_obj.1.to_string(),
-                            }
-                            .execute(&pool)
-                            .await
-                            .map_err(internal_error);
+    match get_raw_value(q, page, tag_vec).await {
+        Ok(result) => {
+            let vec_result = &result["data"]["items"];
+            match vec_result.as_array() {
+                Some(vec_val) => {
+                    let mut count_inserted: u16 = 0;
+                    let mut count_not_inserted: u16 = 0;
+                    for item in vec_val {
+                        let extracted_obj = extract_obj(item);
 
-                            match res {
-                                Ok(_) => count_inserted += 1,
-                                Err(_) => count_not_inserted += 1,
-                            }
+                        //insert to db;
+
+                        let res = Operation::Create {
+                            image: extracted_obj.0.to_string(),
+                            ipfs_image_url: "NO_IPFS".to_owned(),
+                            category: category.cloned(),
+                            width: extracted_obj.3,
+                            height: extracted_obj.4,
+                            prompt: Some(extracted_obj.2.to_string()),
+                            hash_id: extracted_obj.1.to_string(),
                         }
-                        dbg!((count_not_inserted, count_inserted));
-                        Ok(Json(json!({
-                            "success": true,
-                            "total_inserted": count_inserted,
-                            "total_failure": count_not_inserted
-                        })))
+                        .execute(&pool)
+                        .await
+                        .map_err(internal_error);
+
+                        match res {
+                            Ok(_) => count_inserted += 1,
+                            Err(_) => count_not_inserted += 1,
+                        }
                     }
-                    None => Err((StatusCode::NOT_FOUND, "Value not an array".to_owned())),
+                    dbg!((count_not_inserted, count_inserted));
+                    Ok(Json(json!({
+                        "success": true,
+                        "total_inserted": count_inserted,
+                        "total_failure": count_not_inserted
+                    })))
                 }
+                None => Err((StatusCode::NOT_FOUND, "Value not an array".to_owned())),
             }
-            Err(err) => Err((StatusCode::BAD_REQUEST, err.to_string())),
-        },
-        (_, _) => Err((StatusCode::BAD_GATEWAY, "Shit happen".to_owned())),
+        }
+        Err(err) => Err((StatusCode::BAD_REQUEST, err.to_string())),
     }
 }
 
@@ -249,13 +253,24 @@ pub async fn test_query(
 ) -> Result<Json<Value>, (StatusCode, String)> {
     dbg!(&search_params);
 
-    let cloned = search_params.clone();
+    let mut tag_vec: Vec<&String> = Vec::new();
 
-    let key: Vec<_> = search_params.into_keys().collect();
-    let values: Vec<_> = cloned.into_values().collect();
+    let empty_str = String::from("");
+    let page_default = String::from("1");
+
+    let q = search_params.get("q").unwrap_or(&empty_str);
+    let category = search_params.get("category");
+    let tags = search_params.get("tags");
+    let page = search_params.get("page").unwrap_or(&page_default);
+
+    let page = page.parse::<u16>().unwrap_or(1);
+
+    tag_vec.extend(tags);
 
     Ok(Json(json!({
-        "keys": key,
-        "values": values
+        "q": q,
+        "category": category,
+        "tags": tag_vec,
+        "page": page
     })))
 }
