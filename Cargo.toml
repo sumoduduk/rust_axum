@@ -7,9 +7,8 @@ edition = "2021"
 
 [dependencies]
 axum = { version = "0.6.20", features = ["macros"] }
-eyre = "0.6.8"
 log = { version = "0.4.20", features = ["std", "serde"] }
-reqwest = { version = "0.11.18", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.11.18", features = ["json", "rustls-tls"], default-features = false}
 scraper = "0.17.1"
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.104"
