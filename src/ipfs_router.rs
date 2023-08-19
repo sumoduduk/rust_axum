@@ -12,7 +12,7 @@ mod seaart_resp;
 use crate::internal_error;
 
 use ipfs_model::{ArrStructData, Operation, OperationResult, ReturnJson};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::{Pool, Postgres};
 
@@ -37,6 +37,14 @@ pub struct UpdatePayload {
     image: Option<String>,
     ipfs_image_url: Option<String>,
     category: Option<String>,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct FormContact {
+    name: String,
+    email: String,
+    phone: String,
+    message: String,
 }
 
 pub async fn get_all_ipfs(
@@ -113,6 +121,19 @@ pub async fn create_data(
         },
         Err(_) => Err((StatusCode::NOT_FOUND, "Shit happen".to_string())),
     }
+}
+
+pub async fn contact_form(
+    Json(payload): Json<FormContact>,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    dbg!(&payload);
+
+    Ok(Json(json!({
+        "name": payload.name,
+        "email": payload.email,
+        "phone": payload.phone,
+        "message": payload.message,
+    })))
 }
 
 pub async fn update_data(
