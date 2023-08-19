@@ -377,12 +377,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dotenv"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
-
-[[package]]
 name = "dotenvy"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -538,6 +532,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures-macro"
+version = "0.3.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89ca545a94061b6365f2c7355b4b32bd20df3ff95f02da9329b34ccc3bd6ee72"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.28",
+]
+
+[[package]]
 name = "futures-sink"
 version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -556,10 +561,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26b01e40b772d54cf6c6d721c1d1abd0647a0106a12ecaa1c186273392a69533"
 dependencies = [
  "futures-core",
+ "futures-macro",
  "futures-sink",
  "futures-task",
  "pin-project-lite",
  "pin-utils",
+ "slab",
 ]
 
 [[package]]
@@ -760,6 +767,20 @@ dependencies = [
  "tower-service",
  "tracing",
  "want",
+]
+
+[[package]]
+name = "hyper-rustls"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d78e1e73ec14cf7375674f74d7dde185c8206fd9dea6fb6295e8a98098aaa97"
+dependencies = [
+ "futures-util",
+ "http",
+ "hyper",
+ "rustls 0.21.6",
+ "tokio",
+ "tokio-rustls 0.24.1",
 ]
 
 [[package]]
@@ -1367,6 +1388,7 @@ dependencies = [
  "http",
  "http-body",
  "hyper",
+ "hyper-rustls",
  "hyper-tls",
  "ipnet",
  "js-sys",
@@ -1376,17 +1398,36 @@ dependencies = [
  "once_cell",
  "percent-encoding",
  "pin-project-lite",
+ "rustls 0.21.6",
+ "rustls-pemfile",
  "serde",
  "serde_json",
  "serde_urlencoded",
  "tokio",
  "tokio-native-tls",
+ "tokio-rustls 0.24.1",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "webpki-roots",
  "winreg",
+]
+
+[[package]]
+name = "ring"
+version = "0.16.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3053cf52e236a3ed746dfc745aa9cacf1b791d846bdaf412f60a8d7d6e17c8fc"
+dependencies = [
+ "cc",
+ "libc",
+ "once_cell",
+ "spin",
+ "untrusted",
+ "web-sys",
+ "winapi",
 ]
 
 [[package]]
@@ -1394,7 +1435,6 @@ name = "rust_example"
 version = "0.1.0"
 dependencies = [
  "axum",
- "dotenv",
  "eyre",
  "log",
  "reqwest",
@@ -1422,6 +1462,49 @@ dependencies = [
  "libc",
  "linux-raw-sys",
  "windows-sys",
+]
+
+[[package]]
+name = "rustls"
+version = "0.20.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fff78fc74d175294f4e83b28343315ffcfb114b156f0185e9741cb5570f50e2f"
+dependencies = [
+ "log",
+ "ring",
+ "sct",
+ "webpki",
+]
+
+[[package]]
+name = "rustls"
+version = "0.21.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d1feddffcfcc0b33f5c6ce9a29e341e4cd59c3f78e7ee45f4a40c038b1d6cbb"
+dependencies = [
+ "log",
+ "ring",
+ "rustls-webpki",
+ "sct",
+]
+
+[[package]]
+name = "rustls-pemfile"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d3987094b1d07b653b7dfdc3f70ce9a1da9c51ac18c1b06b662e4f9a0e9f4b2"
+dependencies = [
+ "base64 0.21.2",
+]
+
+[[package]]
+name = "rustls-webpki"
+version = "0.101.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "261e9e0888cba427c3316e6322805653c9425240b6fd96cee7cb671ab70ab8d0"
+dependencies = [
+ "ring",
+ "untrusted",
 ]
 
 [[package]]
@@ -1466,6 +1549,16 @@ dependencies = [
  "selectors",
  "smallvec",
  "tendril",
+]
+
+[[package]]
+name = "sct"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d53dcdb7c9f8158937a7981b48accfd39a43af418591a5d008c7b22b5e1b7ca4"
+dependencies = [
+ "ring",
+ "untrusted",
 ]
 
 [[package]]
@@ -1635,6 +1728,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "spin"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
+
+[[package]]
 name = "sqlformat"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1692,6 +1791,8 @@ dependencies = [
  "paste",
  "percent-encoding",
  "rand",
+ "rustls 0.20.8",
+ "rustls-pemfile",
  "serde",
  "serde_json",
  "sha1",
@@ -1703,6 +1804,7 @@ dependencies = [
  "thiserror",
  "tokio-stream",
  "url",
+ "webpki-roots",
  "whoami",
 ]
 
@@ -1734,10 +1836,9 @@ version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "804d3f245f894e61b1e6263c84b23ca675d96753b5abfd5cc8597d86806e8024"
 dependencies = [
- "native-tls",
  "once_cell",
  "tokio",
- "tokio-native-tls",
+ "tokio-rustls 0.23.4",
 ]
 
 [[package]]
@@ -1917,6 +2018,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-rustls"
+version = "0.23.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c43ee83903113e03984cb9e5cebe6c04a5116269e900e3ddba8f068a62adda59"
+dependencies = [
+ "rustls 0.20.8",
+ "tokio",
+ "webpki",
+]
+
+[[package]]
+name = "tokio-rustls"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c28327cf380ac148141087fbfb9de9d7bd4e84ab5d2c28fbc911d753de8a7081"
+dependencies = [
+ "rustls 0.21.6",
+ "tokio",
+]
+
+[[package]]
 name = "tokio-stream"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2042,6 +2164,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39ec24b3121d976906ece63c9daad25b85969647682eee313cb5779fdd69e14e"
 
 [[package]]
+name = "untrusted"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
+
+[[package]]
 name = "url"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2159,6 +2287,25 @@ checksum = "9b85cbef8c220a6abc02aefd892dfc0fc23afb1c6a426316ec33253a3877249b"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "webpki"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f095d78192e208183081cc07bc5515ef55216397af48b873e5edcd72637fa1bd"
+dependencies = [
+ "ring",
+ "untrusted",
+]
+
+[[package]]
+name = "webpki-roots"
+version = "0.22.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
+dependencies = [
+ "webpki",
 ]
 
 [[package]]

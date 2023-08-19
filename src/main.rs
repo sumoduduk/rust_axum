@@ -1,22 +1,13 @@
-use axum::{
-    http::StatusCode,
-    routing::{delete, get, patch, post},
-    Router,
-};
-use dotenv::dotenv;
+use axum::{http::StatusCode, routing::get, Router};
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::{env, net::SocketAddr};
 
 mod ipfs_router;
 
-use ipfs_router::{
-    begin_insert, create_data, delete_data, fetch_single, get_all_ipfs, get_all_pretty, test_query,
-    update_data,
-};
+use ipfs_router::{begin_insert, fetch_single, get_all_pretty, test_query};
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
     let pool: Pool<Postgres> = PgPoolOptions::new()
@@ -27,11 +18,7 @@ async fn main() {
 
     let app = Router::new()
         .route("/", get(home))
-        .route("/get_all", get(get_all_ipfs))
         .route("/get_pretty", get(get_all_pretty))
-        .route("/create_data", post(create_data))
-        .route("/update_data/:id", patch(update_data))
-        .route("/delete_data/:id", delete(delete_data))
         .route("/fetch_single/:id", get(fetch_single))
         .route("/begin_insert", get(begin_insert))
         .route("/test_search_query", get(test_query))
