@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use serde::Serialize;
 use sqlx::{
     types::chrono::{DateTime, Utc},
@@ -83,7 +81,7 @@ impl Operation {
                     pool,
                     image,
                     ipfs_image_url,
-                    category,
+                    category.clone(),
                     width,
                     height,
                     prompt,
@@ -121,7 +119,7 @@ impl Operation {
         pool: &Pool<Postgres>,
         image: &str,
         ipfs_image_url: &str,
-        category: &Option<String>,
+        category: Option<String>,
         w: &i32,
         h: &i32,
         prompt: &Option<String>,

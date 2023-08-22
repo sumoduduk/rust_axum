@@ -14,6 +14,7 @@ use crate::internal_error;
 use ipfs_model::{ArrStructData, Operation, OperationResult, ReturnJson};
 use serde_json::{json, Value};
 use sqlx::{Pool, Postgres};
+use tokio::task;
 
 use ArrStructData::*;
 use OperationResult::*;
@@ -80,57 +81,58 @@ pub async fn begin_insert(
 
     let mut tag_vec = Vec::new();
 
-    let q = search_params.get("q").unwrap_or(&q_default);
-    let category = search_params.get("category");
+    let q = search_params.get("q").unwrap_or(&q_default).to_string();
     let page = search_params.get("page").unwrap_or(&page_default);
-    let tags = search_params.get("tags");
+    let tags = search_params.get("tags").cloned();
 
     let page: u16 = page.parse().unwrap_or(1);
 
     tag_vec.extend(tags);
 
-    match get_raw_value(q, page, tag_vec).await {
-        Ok(result) => {
-            let vec_result = &result["data"]["items"];
-            match vec_result.as_array() {
-                Some(vec_val) => {
-                    let mut count_inserted: u16 = 0;
-                    let mut count_not_inserted: u16 = 0;
-                    for item in vec_val {
-                        let extracted_obj = extract_obj(item);
+    task::spawn(async move {
+        match get_raw_value(q, page, tag_vec).await {
+            Ok(result) => {
+                let vec_result = &result["data"]["items"];
+                match vec_result.as_array() {
+                    Some(vec_val) => {
+                        let mut count_inserted: u16 = 0;
+                        let mut count_not_inserted: u16 = 0;
+                        for item in vec_val {
+                            let extracted_obj = extract_obj(item);
 
-                        //insert to db;
+                            //insert to db;
 
-                        let res = Operation::Create {
-                            image: extracted_obj.0.to_string(),
-                            ipfs_image_url: "NO_IPFS".to_owned(),
-                            category: category.cloned(),
-                            width: extracted_obj.3,
-                            height: extracted_obj.4,
-                            prompt: Some(extracted_obj.2.to_string()),
-                            hash_id: extracted_obj.1.to_string(),
+                            let res = Operation::Create {
+                                image: extracted_obj.0.to_string(),
+                                ipfs_image_url: "NO_IPFS".to_owned(),
+                                category: search_params.get("category").cloned(),
+                                width: extracted_obj.3,
+                                height: extracted_obj.4,
+                                prompt: Some(extracted_obj.2.to_string()),
+                                hash_id: extracted_obj.1.to_string(),
+                            }
+                            .execute(&pool)
+                            .await
+                            .map_err(internal_error);
+
+                            match res {
+                                Ok(_) => count_inserted += 1,
+                                Err(_) => count_not_inserted += 1,
+                            }
                         }
-                        .execute(&pool)
-                        .await
-                        .map_err(internal_error);
-
-                        match res {
-                            Ok(_) => count_inserted += 1,
-                            Err(_) => count_not_inserted += 1,
-                        }
+                        dbg!((count_not_inserted, count_inserted));
                     }
-                    dbg!((count_not_inserted, count_inserted));
-                    Ok(Json(json!({
-                        "success": true,
-                        "total_inserted": count_inserted,
-                        "total_failure": count_not_inserted
-                    })))
+                    None => println!("Value not an Array"),
                 }
-                None => Err((StatusCode::NOT_FOUND, "Value not an array".to_owned())),
             }
+            Err(err) => println!("{}", err.to_string()),
         }
-        Err(err) => Err((StatusCode::BAD_REQUEST, err.to_string())),
-    }
+    });
+
+    Ok(Json(json!({
+        "status": "OK",
+        "message": "success"
+    })))
 }
 
 pub async fn test_query(

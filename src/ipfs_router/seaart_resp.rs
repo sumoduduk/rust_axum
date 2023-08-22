@@ -14,9 +14,9 @@ pub fn extract_obj(val: &Value) -> (&str, &str, &str, i32, i32) {
 }
 
 pub async fn get_raw_value(
-    query_search: &str,
+    query_search: String,
     pages: u16,
-    tags: Vec<&String>,
+    tags: Vec<String>,
 ) -> Result<Value, reqwest::Error> {
     let keyword = query_search.replace('+', " ");
     dbg!(&keyword);
